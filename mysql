@@ -1,0 +1,122 @@
+CREATE DATABASE GlobalLogisticst;
+USE GlobalLogisticst;
+
+-- CLIENT
+CREATE TABLE Client (
+    client_id INT PRIMARY KEY,
+    name VARCHAR(255),
+    address TEXT
+);
+
+-- CARRIER
+CREATE TABLE Carrier (
+    carrier_id INT PRIMARY KEY,
+    name VARCHAR(255),
+    type ENUM('air', 'land', 'sea'),
+    contact_info TEXT
+);
+
+-- WAREHOUSE
+CREATE TABLE Warehouse (
+    warehouse_id INT PRIMARY KEY,
+    location VARCHAR(255),
+    capacity INT
+);
+
+-- EMPLOYEE
+CREATE TABLE Employee (
+    employee_id INT PRIMARY KEY,
+    name VARCHAR(255),
+    role VARCHAR(100),
+    warehouse_id INT,
+    carrier_id INT,
+    CHECK ((warehouse_id IS NULL AND carrier_id IS NOT NULL) OR 
+           (warehouse_id IS NOT NULL AND carrier_id IS NULL)),
+    FOREIGN KEY (warehouse_id) REFERENCES Warehouse(warehouse_id),
+    FOREIGN KEY (carrier_id) REFERENCES Carrier(carrier_id)
+);
+
+-- SHIPMENT
+CREATE TABLE Shipment (
+    shipment_id INT PRIMARY KEY,
+    origin VARCHAR(255),
+    destination VARCHAR(255),
+    weight DECIMAL(10,2),
+    content_description TEXT,
+    shipment_date DATE,
+    sender_id INT,
+    receiver_id INT,
+    FOREIGN KEY (sender_id) REFERENCES Client(client_id),
+    FOREIGN KEY (receiver_id) REFERENCES Client(client_id)
+);
+
+-- SHIPMENT CARRIER ROUTE (many-to-many: one shipment, multiple carriers over time)
+CREATE TABLE ShipmentCarrier (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    shipment_id INT,
+    carrier_id INT,
+    leg_order INT, -- order of leg: 1, 2, 3, ...
+    FOREIGN KEY (shipment_id) REFERENCES Shipment(shipment_id),
+    FOREIGN KEY (carrier_id) REFERENCES Carrier(carrier_id)
+);
+
+-- SHIPMENT WAREHOUSE HISTORY (track where shipment was stored and when)
+CREATE TABLE ShipmentWarehouseHistory (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    shipment_id INT,
+    warehouse_id INT,
+    arrival_date DATE,
+    departure_date DATE,
+    FOREIGN KEY (shipment_id) REFERENCES Shipment(shipment_id),
+    FOREIGN KEY (warehouse_id) REFERENCES Warehouse(warehouse_id)
+);
+
+-- CUSTOMS CLEARANCE
+CREATE TABLE CustomsClearance (
+    shipment_id INT PRIMARY KEY,
+    cleared BOOLEAN,
+    clearance_date DATE,
+    remarks TEXT,
+    FOREIGN KEY (shipment_id) REFERENCES Shipment(shipment_id)
+);
+
+-- CROSS-DOCK OPERATIONS (when a shipment is directly transferred between carriers in a warehouse)
+CREATE TABLE CrossDockOperation (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    shipment_id INT,
+    warehouse_id INT,
+    from_carrier_id INT,
+    to_carrier_id INT,
+    operation_date DATE,
+    FOREIGN KEY (shipment_id) REFERENCES Shipment(shipment_id),
+    FOREIGN KEY (warehouse_id) REFERENCES Warehouse(warehouse_id),
+    FOREIGN KEY (from_carrier_id) REFERENCES Carrier(carrier_id),
+    FOREIGN KEY (to_carrier_id) REFERENCES Carrier(carrier_id)
+);
+
+-- Clients
+INSERT INTO Client VALUES (1, 'Acme Corp', 'New York, USA');
+INSERT INTO Client VALUES (2, 'Globex Ltd', 'Berlin, Germany');
+
+-- Carriers
+INSERT INTO Carrier VALUES (1, 'DHL Air Express', 'air', 'contact@dhl.com');
+INSERT INTO Carrier VALUES (2, 'OceanTrans', 'sea', 'info@oceantrans.com');
+
+-- Warehouses
+INSERT INTO Warehouse VALUES (1, 'Chennai, India', 1000);
+INSERT INTO Warehouse VALUES (2, 'Rotterdam, Netherlands', 800);
+
+-- Employees
+INSERT INTO Employee VALUES (1, 'John Smith', 'Warehouse Staff', 1, NULL);
+INSERT INTO Employee VALUES (2, 'Anna Lee', 'Carrier Crew', NULL, 1);
+
+-- Shipments
+INSERT INTO Shipment VALUES (101, 'Mumbai, India', 'Hamburg, Germany', 1200.50, 'Electronics', '2025-06-10', 1, 2);
+
+-- Shipment Carriers (Multiple Legs)
+INSERT INTO Shipment_Carrier VALUES (101, 1, 1, 'Mumbai', 'Dubai');
+INSERT INTO Shipment_Carrier VALUES (101, 2, 2, 'Dubai', 'Hamburg');
+
+-- Shipment Storage (Tracking Warehouse Movements)
+INSERT INTO Shipment_Storage VALUES (101, 1, '2025-06-10 08:00:00', '2025-06-10 18:00:00');
+INSERT INTO Shipment_Storage VALUES (101, 2, '2025-06-12 10:00:00', '2025-06-13 09:00:00');
